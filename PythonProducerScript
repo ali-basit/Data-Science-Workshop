@@ -1,0 +1,28 @@
+import pymysql as sql 
+from sqlalchemy import create_engine
+
+cnx=create_engine("mysql+pymysql://root:pass123@localhost:3306/cityopendata")
+base="https://secure.toronto.ca/webwizard/ws/requests.json?"
+jurisdiction="jurisdiction_id=toronto.ca"
+
+for date in pd.date_range(start="2017-08-01", end="2017-09-23",freq="6h"):
+    startdate="startdate=" + date.strftime('%Y-%m-%d %H:%M:%S').replace(" ","T")+"Z&"
+    enddate="startdate=" + (date+1).strftime('%Y-%m-%d %H:%M:%S').replace(" ","T")+"Z&"
+    url=pd.read_json(base + startdate + enddate + jurisdiction,orient='records')
+    #url=pd.read_json(url["service_requests"].to_json()).transpose().to_json("/home/ubuntu/Data/File"+date.strftime('%Y-%m-%d')+".json")
+    url=pd.read_json(url["service_requests"].to_json()).transpose()
+    
+    url['expected_datetime'] = url['expected_datetime'].map(lambda x: str(x)[:-6])
+    url['expected_datetime'] = url['expected_datetime'].str.replace('T', ' ')
+    url['expected_datetime'] = pd.to_datetime(url['expected_datetime'],infer_datetime_format=True)
+
+    url['requested_datetime'] = url['requested_datetime'].map(lambda x: str(x)[:-6])
+    url['requested_datetime'] = url['requested_datetime'].str.replace('T', ' ')
+    url['requested_datetime'] = pd.to_datetime(url['requested_datetime'],infer_datetime_format=True)
+
+    url['updated_datetime'] = url['updated_datetime'].map(lambda x: str(x)[:-6])
+    url['updated_datetime'] = url['updated_datetime'].str.replace('T', ' ')
+    url['updated_datetime'] = pd.to_datetime(url['updated_datetime'],infer_datetime_format=True)
+    
+    url.to_sql(name="311data",con=cnx,if_exists="append",index=False)
+    print(date)
